@@ -89,7 +89,7 @@ const EnhancedTable = ({ columns, data }) => {
                   {...row.getRowProps()}
                   // onClick={(ev) => onRowClick(ev, row)}
                   // className="truncate cursor-pointer"
-                  className="truncate"
+                  // className="truncate"
                 >
                   {row.cells.map((cell, ind) => {
                     return (

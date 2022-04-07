@@ -9,21 +9,27 @@ import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
 import Icon from '@material-ui/core/Icon';
+import Autocomplete from '@material-ui/lab/Autocomplete';
 import FormLabel from '@material-ui/core/FormLabel';
 import FormControl from '@material-ui/core/FormControl';
-import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import TextField from '@material-ui/core/TextField';
-import Checkbox from '@material-ui/core/Checkbox';
 import Radio from '@material-ui/core/Radio';
 import RadioGroup from '@material-ui/core/RadioGroup';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import { Controller, useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
+import DateFnsUtils from '@date-io/date-fns';
+import {
+  MuiPickersUtilsProvider,
+  KeyboardDateTimePicker,
+} from '@material-ui/pickers';
 
 // import _ from '@lodash';
 import * as yup from 'yup';
+
+import FormatDate from '../pdf/helpers/format-date';
 
 import * as FileSaver from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -34,15 +40,10 @@ import NotificationModel from 'app/fuse-layouts/shared-components/notificationPa
 import { addNotification } from 'app/fuse-layouts/shared-components/notificationPanel/store/dataSlice';
 
 const defaultValues = {
-  ano: '',
-  filtro: 'turma',
-  nome: true,
-  data: false,
-  valor: true,
-  desc: true,
-  turma: false,
-  serie: false,
-  filial: false,
+  dtInicio: new Date('2022-01-01T11:11:11'),
+  dtFim: new Date(),
+  recibos: [],
+  order: 'turma',
 };
 
 /**
@@ -63,12 +64,14 @@ const schema = yup.object().shape({
 // };
 
 const RelatorioDialog = () => {
+  const formatDate = new FormatDate();
   const fileType =
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';
   const fileExtension = '.xlsx';
   const dispatch = useDispatch();
   // const user = useSelector(({ auth }) => auth.user);
   const data = useSelector(selectCaixa);
+  const recibos = useSelector(({ caixaApp }) => caixaApp.tipos);
   const relatorioDialog = useSelector(
     ({ caixaApp }) => caixaApp.caixa.relatorioDialog
   );
@@ -149,24 +152,258 @@ const RelatorioDialog = () => {
    */
   const onSubmit = () => {
     try {
-      let dataE = data;
-      const filters = getValues();
+      const dtInicio = getValues('dtInicio');
+      const dtFim = getValues('dtFim');
 
-      dataE = dataE.filter((d) => d);
-      console.log(dataE);
+      let alunos = data.filter(
+        (el) =>
+          new Date(el.createdAt) >= new Date(dtInicio) &&
+          new Date(el.createdAt) <= new Date(dtFim)
+      );
+      console.log('Alunos', alunos);
 
-      switch (filters.filtro) {
+      const recibos = getValues('recibos');
+
+      let alunosArray = [];
+      if (recibos.length > 0) {
+        alunos.forEach((al) => {
+          al.tipos.forEach((tipo) => {
+            recibos.map((recibo) => {
+              if (tipo.idRecebimentoTipo == recibo.idRecebimentoTipo) {
+                alunosArray.push({
+                  data: al.createdAt,
+                  aluno: al.nome,
+                  recibo: tipo.tipo,
+                  valor: tipo.valor,
+                  desc: al.descricao,
+                  usuario: al.usuario,
+                  turma: al.turma,
+                  serie: al.abSerie,
+                  filial: al.abFilial,
+                });
+              }
+            });
+          });
+        });
+      } else {
+        alunos.forEach((al) => {
+          al.tipos.forEach((tipo) => {
+            alunosArray.push({
+              data: al.createdAt,
+              aluno: al.nome,
+              recibo: tipo.tipo,
+              valor: tipo.valor,
+              desc: al.descricao,
+              usuario: al.usuario,
+              turma: al.turma,
+              serie: al.abSerie,
+              filial: al.abFilial,
+            });
+          });
+        });
+      }
+
+      const alunosFilter = alunosArray.filter(function (a) {
+        return !this[JSON.stringify(a)] && (this[JSON.stringify(a)] = true);
+      }, Object.create(null));
+      const alunosSort = alunosFilter.sort((a, b) => {
+        return a.nome < b.nome ? -1 : a.nome > b.nome ? 1 : 0;
+      });
+
+      // console.log('alunosSort', alunosSort);
+      const arrayData = [];
+      const arrayFilter = [];
+
+      const order = getValues('order');
+      let totalGeral = 0;
+      switch (order) {
         case 'geral':
+          arrayData.push([
+            'Data',
+            'Aluno',
+            'Recibo',
+            'Valor',
+            'Desc',
+            'Usuario',
+            'Turma',
+            'Serie',
+            'Filial',
+          ]);
+          alunosSort.forEach((al) => {
+            arrayData.push([
+              al.data,
+              al.aluno,
+              al.recibo,
+              al.valor,
+              al.desc,
+              al.usuario,
+              al.turma,
+              al.serie,
+              al.filial,
+            ]);
+            totalGeral += parseFloat(al.valor);
+          });
+          arrayData.push(['TOTAL GERAL', '-', '-', totalGeral]);
           break;
         case 'filial':
+          alunosSort.forEach((al) => {
+            arrayFilter.push([al.filial]);
+          });
+          // eslint-disable-next-line no-case-declarations
+          let filialFilter = arrayFilter.filter(function (a) {
+            return !this[JSON.stringify(a)] && (this[JSON.stringify(a)] = true);
+          }, Object.create(null));
+          filialFilter.forEach((filial) => {
+            console.log(filial[0]);
+            arrayData.push([filial[0]]);
+            arrayData.push([
+              'Data',
+              'Aluno',
+              'Recibo',
+              'Valor',
+              'Desc',
+              'Usuario',
+              'Turma',
+              'Serie',
+              // 'Filial',
+            ]);
+            let total = 0;
+            alunosSort.forEach((al) => {
+              if (al.filial == filial[0]) {
+                arrayData.push([
+                  al.data,
+                  al.aluno,
+                  al.recibo,
+                  al.valor,
+                  al.desc,
+                  al.usuario,
+                  al.turma,
+                  al.serie,
+                  // al.filial,
+                ]);
+                total += parseFloat(al.valor);
+              }
+            });
+            arrayData.push([`TOTAL ${filial[0]}`, '-', '-', total]);
+            totalGeral += parseFloat(total);
+          });
+          arrayData.push(['TOTAL GERAL', '-', '-', totalGeral]);
           break;
         case 'serie':
+          alunosSort.forEach((al) => {
+            arrayFilter.push([al.filial, al.serie]);
+          });
+          // eslint-disable-next-line no-case-declarations
+          let serieFilter = arrayFilter.filter(function (a) {
+            return !this[JSON.stringify(a)] && (this[JSON.stringify(a)] = true);
+          }, Object.create(null));
+          serieFilter.forEach((serie) => {
+            console.log(serie[0], serie[1]);
+            arrayData.push([serie[1], serie[0]]);
+            arrayData.push([
+              'Data',
+              'Aluno',
+              'Recibo',
+              'Valor',
+              'Desc',
+              'Usuario',
+              'Turma',
+              // 'Serie',
+              // 'Filial',
+            ]);
+            let total = 0;
+            alunosSort.forEach((al) => {
+              if (al.filial == serie[0] && al.serie == serie[1]) {
+                arrayData.push([
+                  al.data,
+                  al.aluno,
+                  al.recibo,
+                  al.valor,
+                  al.desc,
+                  al.usuario,
+                  al.turma,
+                  // al.serie,
+                  // al.filial,
+                ]);
+                total += parseFloat(al.valor);
+              }
+            });
+            arrayData.push([`TOTAL ${serie[1]} ${serie[0]}`, '-', '-', total]);
+            totalGeral += parseFloat(total);
+          });
+          arrayData.push(['TOTAL GERAL', '-', '-', totalGeral]);
           break;
         case 'turma':
+          alunosSort.forEach((al) => {
+            arrayFilter.push([al.filial, al.serie, al.turma]);
+          });
+          // eslint-disable-next-line no-case-declarations
+          let turmaFilter = arrayFilter.filter(function (a) {
+            return !this[JSON.stringify(a)] && (this[JSON.stringify(a)] = true);
+          }, Object.create(null));
+          turmaFilter.forEach((turma) => {
+            console.log(turma[0], turma[1], turma[2]);
+            arrayData.push([turma[1], turma[2], turma[0]]);
+            arrayData.push([
+              'Data',
+              'Aluno',
+              'Recibo',
+              'Valor',
+              'Desc',
+              'Usuario',
+              // 'Turma',
+              // 'Serie',
+              // 'Filial',
+            ]);
+            let total = 0;
+            alunosSort.forEach((al) => {
+              if (
+                al.filial == turma[0] &&
+                al.serie == turma[1] &&
+                al.turma == turma[2]
+              ) {
+                arrayData.push([
+                  al.data,
+                  al.aluno,
+                  al.recibo,
+                  al.valor,
+                  al.desc,
+                  al.usuario,
+                  // al.turma,
+                  // al.serie,
+                  // al.filial,
+                ]);
+                total += parseFloat(al.valor);
+              }
+            });
+            arrayData.push([
+              `TOTAL ${turma[1]} ${turma[2]} ${turma[0]}`,
+              '-',
+              '-',
+              total,
+            ]);
+            totalGeral += parseFloat(total);
+          });
+          arrayData.push(['TOTAL GERAL', '-', '-', totalGeral]);
           break;
       }
 
-      // return exportToCSV(data, 'relatorio');
+      // console.log('arrayData', arrayData);
+
+      // let buscar = 'null';
+      // arrayData.forEach((ar) => {
+      //   let indice = ar.indexOf(buscar);
+      //   while (indice >= 0) {
+      //     ar.splice(indice, 1);
+      //     indice = ar.indexOf(buscar);
+      //   }
+      //   // indice = ar.indexOf(buscar);
+      //   // console.log('Array', ar);
+      // });
+
+      // console.log(arrayData);
+
+      return exportToCSV(arrayData, `relatorio_${formatDate.todayDateTime()}`);
     } catch (err) {
       console.log(err);
       createNotification({
@@ -215,30 +452,117 @@ const RelatorioDialog = () => {
         <DialogContent classes={{ root: 'p-24' }}>
           <div className="flex">
             <div className="min-w-48 pt-20">
-              <Icon color="action">date_range</Icon>
+              <Icon color="action">today</Icon>
             </div>
-            <FormControl component="fieldset">
-              <FormLabel component="legend">Data de</FormLabel>
+            <MuiPickersUtilsProvider utils={DateFnsUtils}>
               <Controller
-                name="ano"
                 control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    className="mb-24"
-                    label="Ano"
-                    id="ano"
-                    error={!!errors.login}
-                    helperText={errors?.login?.message}
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    required
-                    da
+                name="dtInicio"
+                render={({ field: { onChange, value } }) => (
+                  <KeyboardDateTimePicker
+                    // {...field}
+                    ampm={false}
+                    label="Data Inicial"
+                    format="dd/MM/yyyy HH:mm"
+                    value={value}
+                    onChange={(e) => {
+                      onChange(e);
+                      // verifyRecibos();
+                    }}
+                    KeyboardButtonProps={{
+                      'aria-label': 'change date',
+                    }}
                   />
                 )}
               />
-            </FormControl>
+            </MuiPickersUtilsProvider>
+
+            <div className="mx-8 hidden sm:flex">
+              <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                <Controller
+                  control={control}
+                  name="dtFim"
+                  render={({ field: { onChange, value } }) => (
+                    <KeyboardDateTimePicker
+                      // {...field}
+                      ampm={false}
+                      label="Data Final"
+                      format="dd/MM/yyyy HH:mm"
+                      value={value}
+                      onChange={(e) => {
+                        onChange(e);
+                        // verifyRecibos();
+                      }}
+                      KeyboardButtonProps={{
+                        'aria-label': 'change date',
+                      }}
+                    />
+                  )}
+                />
+              </MuiPickersUtilsProvider>
+            </div>
+          </div>
+
+          <div className="flex sm:hidden">
+            <div className="min-w-48 pt-20">
+              <Icon color="action">today</Icon>
+            </div>
+            <MuiPickersUtilsProvider utils={DateFnsUtils}>
+              <Controller
+                control={control}
+                name="dtFim"
+                render={({ field: { onChange, value } }) => (
+                  <KeyboardDateTimePicker
+                    // {...field}
+                    ampm={false}
+                    label="Date Final"
+                    format="dd/MM/yyyy HH:mm"
+                    value={value}
+                    onChange={(e) => {
+                      onChange(e);
+                      // verifyRecibos();
+                    }}
+                    KeyboardButtonProps={{
+                      'aria-label': 'change date',
+                    }}
+                  />
+                )}
+              />
+            </MuiPickersUtilsProvider>
+          </div>
+
+          <div className="flex mt-8">
+            <div className="min-w-48 pt-20">
+              <Icon color="action">label</Icon>
+            </div>
+            <Controller
+              control={control}
+              name="recibos"
+              render={({ field: { onChange } }) => (
+                <Autocomplete
+                  // {...field}
+                  className="mb-24"
+                  fullWidth
+                  required
+                  multiple
+                  options={recibos}
+                  loading={recibos.length == 0 ? true : false}
+                  getOptionLabel={(option) => `${option.tipo}`}
+                  renderOption={(option) => <>{`${option.tipo}`}</>}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Recibos"
+                      variant="outlined"
+                      required
+                    />
+                  )}
+                  onChange={(event, newValue) => {
+                    onChange(newValue);
+                  }}
+                />
+              )}
+            />
           </div>
 
           <div className="flex">
@@ -246,12 +570,12 @@ const RelatorioDialog = () => {
               <Icon color="action">filter_alt</Icon>
             </div>
             <FormControl component="fieldset">
-              <FormLabel component="legend">Filtrar por</FormLabel>
+              <FormLabel component="legend">Ordenar por</FormLabel>
               <Controller
-                name="filtro"
+                name="order"
                 control={control}
                 render={({ field }) => (
-                  <RadioGroup {...field} aria-label="filtro" row>
+                  <RadioGroup {...field} aria-label="order" row>
                     <FormControlLabel
                       value="geral"
                       control={<Radio />}
@@ -275,129 +599,6 @@ const RelatorioDialog = () => {
                   </RadioGroup>
                 )}
               />
-            </FormControl>
-          </div>
-
-          <div className="flex">
-            <div className="min-w-48 pt-20">
-              <Icon color="action">view_column</Icon>
-            </div>
-            <FormControl component="fieldset">
-              <FormLabel component="legend">Campos Selecionados</FormLabel>
-              <FormGroup aria-label="position" row>
-                <FormControlLabel
-                  label={'Nome do Aluno'}
-                  control={
-                    <Controller
-                      name="nome"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Data'}
-                  control={
-                    <Controller
-                      name="data"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Valor'}
-                  control={
-                    <Controller
-                      name="valor"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Observação'}
-                  control={
-                    <Controller
-                      name="desc"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Turma'}
-                  control={
-                    <Controller
-                      name="turma"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Série'}
-                  control={
-                    <Controller
-                      name="serie"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  label={'Filial'}
-                  control={
-                    <Controller
-                      name="filial"
-                      type="checkbox"
-                      control={control}
-                      render={({ field: { value, onChange } }) => (
-                        <Checkbox
-                          checked={value}
-                          onChange={(_, data) => onChange(data)}
-                        />
-                      )}
-                    />
-                  }
-                />
-              </FormGroup>
             </FormControl>
           </div>
         </DialogContent>

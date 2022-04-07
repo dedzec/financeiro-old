@@ -10,7 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectMainTheme } from 'app/store/fuse/settingsSlice';
 import {
   setCaixaSearchText,
-  // openRelatorioDialog,
+  openRelatorioDialog,
   openListDialog,
 } from './store/caixaSlice';
 
@@ -73,15 +73,15 @@ function CaixaHeader() {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0, transition: { delay: 0.2 } }}
       >
-        {/* <Button
-          className="whitespace-nowrap"
+        <Button
+          className="whitespace-nowrap mx-8"
           variant="contained"
           color="primary"
           onClick={() => dispatch(openRelatorioDialog())}
         >
           <span className="hidden sm:flex">Gerar Relatório</span>
           <span className="flex sm:hidden">Relatório</span>
-        </Button> */}
+        </Button>
         <Button
           className="whitespace-nowrap"
           variant="contained"

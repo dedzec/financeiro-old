@@ -12,8 +12,8 @@ export const getAlunos = createAsyncThunk(
         'Content-Type': 'application/json',
       },
     });
-    console.log('Usuario', user);
-    console.log('Alunos', res.data);
+    // console.log('Usuario', user);
+    // console.log('Alunos', res.data);
     const data = await res.data;
 
     return data;

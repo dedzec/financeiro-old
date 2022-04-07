@@ -14,8 +14,9 @@ module.exports = merge(common, {
     filename: '[name].bundle.js',
     // path: path.resolve(__dirname, 'dist'),
     path: path.resolve(__dirname, '../build'),
-    // publicPath: `${router.baseUrl}/`,
-    publicPath: 'https://dombarreto.com/portal' + `${router.baseUrl}/`,
+    // publicPath: `${router.baseUrl}`,
+    publicPath: 'https://dombarreto.com' + `${router.baseUrl}/`,
+    // publicPath: 'https://financeiro.dombarreto.com',
     clean: true,
   },
 });

@@ -4,7 +4,7 @@ import img from './imgidb';
 
 const lista = (data) => {
   // console.log('data', data);
-  const { recibos, turma, alunos } = data;
+  const { titulo, recibos, turma, alunos } = data;
 
   const formatDate = new FormatDate();
 
@@ -93,7 +93,10 @@ const lista = (data) => {
         //   text: 'Here goes the rest',
         // },
         {
-          text: `${turma.serie} ${turma.turma} - ${turma.filial}\n${recibos}`,
+          text:
+            titulo.length > 0
+              ? `${titulo}\n\n${turma.serie} ${turma.turma} - ${turma.filial}\n${recibos}`
+              : `${turma.serie} ${turma.turma} - ${turma.filial}\n${recibos}`,
           style: 'reportName',
           margin: [25, 0, 0, 0],
           alignment: 'center',

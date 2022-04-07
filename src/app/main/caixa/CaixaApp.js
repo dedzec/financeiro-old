@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import FusePageSimple from '@fuse/core/FusePageSimple';
 import CaixaHeader from './CaixaHeader';
 import CaixaList from './CaixaList';
-// import RelatorioDialog from './RelatorioDialog';
+import RelatorioDialog from './RelatorioDialog';
 import CancelReciboDialog from './CancelReciboDialog';
 import ListDialog from './ListDialog';
 import reducer from './store';
@@ -26,6 +26,12 @@ function CaixaApp() {
     dispatch(getTipos(user));
   }, [dispatch]);
 
+  useEffect(() => {
+    setInterval(() => {
+      dispatch(getCaixa(user));
+    }, 1000 * 30);
+  }, [dispatch]);
+
   return (
     <>
       <FusePageSimple
@@ -37,7 +43,7 @@ function CaixaApp() {
         innerScroll
       />
       <CancelReciboDialog />
-      {/* <RelatorioDialog /> */}
+      <RelatorioDialog />
       <ListDialog />
     </>
   );

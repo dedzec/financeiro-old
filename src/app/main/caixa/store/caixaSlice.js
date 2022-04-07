@@ -204,6 +204,13 @@ const caixaSlice = createSlice({
       },
       data: null,
     },
+    relatorioDialog: {
+      type: 'new',
+      props: {
+        open: false,
+      },
+      data: null,
+    },
     listDialog: {
       type: 'new',
       props: {

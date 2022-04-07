@@ -43,6 +43,7 @@ import { addNotification } from 'app/fuse-layouts/shared-components/notification
 const defaultValues = {
   dtInicio: new Date('2022-01-01T11:11:11'),
   dtFim: new Date(),
+  titulo: '',
   recibos: [],
   turma: '0',
 };
@@ -272,7 +273,7 @@ const ListDialog = () => {
   //   }
   // };
 
-  const pdf = (recibos, dtInicio, dtFim, turma) => {
+  const pdf = (titulo, recibos, dtInicio, dtFim, turma) => {
     try {
       let nameRecibos = '';
       recibos.forEach((recibo, index) => {
@@ -327,7 +328,12 @@ const ListDialog = () => {
 
       pdfMake
         .createPdf(
-          lista({ recibos: nameRecibos, turma: turmaInfo, alunos: alunosSort })
+          lista({
+            titulo: titulo,
+            recibos: nameRecibos,
+            turma: turmaInfo,
+            alunos: alunosSort,
+          })
         )
         .open();
 
@@ -348,18 +354,29 @@ const ListDialog = () => {
    */
   const onSubmit = () => {
     try {
+      const titulo = getValues('titulo');
       const recibos = getValues('recibos');
       const dtInicio = getValues('dtInicio');
       const dtFim = getValues('dtFim');
       const turma = getValues('turma');
-      if (turma != '0') {
-        pdf(recibos, dtInicio, dtFim, turma);
-      } else {
+
+      if (recibos.length <= 0) {
+        createNotification({
+          message: 'Selecione um recibo',
+          options: { variant: 'warning' },
+        });
+        return;
+      }
+
+      if (turma == '0') {
         createNotification({
           message: 'Selecione a Turma',
           options: { variant: 'warning' },
         });
+        return;
       }
+
+      pdf(titulo, recibos, dtInicio, dtFim, turma);
     } catch (err) {
       console.log(err);
     }
@@ -417,7 +434,7 @@ const ListDialog = () => {
                   <KeyboardDateTimePicker
                     // {...field}
                     ampm={false}
-                    label="Date Inicial"
+                    label="Data Inicial"
                     format="dd/MM/yyyy HH:mm"
                     value={value}
                     onChange={(e) => {
@@ -431,9 +448,34 @@ const ListDialog = () => {
                 )}
               />
             </MuiPickersUtilsProvider>
+
+            <div className="mx-8 hidden sm:flex">
+              <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                <Controller
+                  control={control}
+                  name="dtFim"
+                  render={({ field: { onChange, value } }) => (
+                    <KeyboardDateTimePicker
+                      // {...field}
+                      ampm={false}
+                      label="Data Final"
+                      format="dd/MM/yyyy HH:mm"
+                      value={value}
+                      onChange={(e) => {
+                        onChange(e);
+                        verifyRecibos();
+                      }}
+                      KeyboardButtonProps={{
+                        'aria-label': 'change date',
+                      }}
+                    />
+                  )}
+                />
+              </MuiPickersUtilsProvider>
+            </div>
           </div>
 
-          <div className="flex">
+          <div className="flex sm:hidden">
             <div className="min-w-48 pt-20">
               <Icon color="action">today</Icon>
             </div>
@@ -461,6 +503,25 @@ const ListDialog = () => {
             </MuiPickersUtilsProvider>
           </div>
 
+          <div className="flex mt-8">
+            <div className="min-w-48 pt-20">
+              <Icon color="action">note</Icon>
+            </div>
+            <Controller
+              control={control}
+              name="titulo"
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  className="mb-24"
+                  label="Título"
+                  variant="outlined"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+
           <div className="flex">
             <div className="min-w-48 pt-20">
               <Icon color="action">label</Icon>
@@ -482,7 +543,7 @@ const ListDialog = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Recibo"
+                      label="Recibos"
                       variant="outlined"
                       required
                     />
@@ -502,7 +563,7 @@ const ListDialog = () => {
                 <Icon color="action">filter_alt</Icon>
               </div>
               <FormControl component="fieldset">
-                <FormLabel component="legend">Filtrar por</FormLabel>
+                <FormLabel component="legend">Selecionar Turma</FormLabel>
                 <Controller
                   name="turma"
                   control={control}
