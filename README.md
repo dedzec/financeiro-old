@@ -1,4 +1,4 @@
-# fuse-skeleton-clone
+# financeiro-old
 
 ## How to use
 
@@ -6,10 +6,10 @@ Install it and run:
 
 ```sh
 # clone the project
-git clone https://github.com/dedzec/fuse-skeleton-clone.git
+git clone https://github.com/dedzec/financeiro-old.git
 
 # enter the project directory
-cd fuse-skeleton-clone
+cd financeiro-old
 
 # install dependency
 npm install
